@@ -61,6 +61,9 @@ resource "aws_db_instance" "log_legacy_db_instance" {
   multi_az                = false
   publicly_accessible     = false
   backup_retention_period = var.backup_retention_period
+  backup_window = var.db_backup_window
+  copy_tags_to_snapshot = true
+  delete_automated_backups = false
   # As this code is just for my efficiency, and will be teared down and built up as needed
   deletion_protection = false
 

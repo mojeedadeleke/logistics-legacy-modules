@@ -64,3 +64,8 @@ variable "igw_id" {
   description = "The EC2 EIP attachment depends on the IGW in the network module" # And, outputting a whole resource exposes it unnecessarily
   type        = string
 }
+
+variable "documents_volume_snapshot_retain_counts" {
+  description = "How many daily snapshots to keep"
+  type = number
+}

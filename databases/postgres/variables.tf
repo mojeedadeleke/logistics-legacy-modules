@@ -69,6 +69,11 @@ variable "db_maintenance_window" {
   type        = string
 }
 
+variable "db_backup_window" {
+  description = "Daily backup window"
+  type = string
+}
+
 variable "storage_encrypted" {
   description = "Encrypt DB storage. Can only be chosen at creation; adding it later means snapshot, encrypted copy, restore"
   type        = bool

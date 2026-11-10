@@ -1,11 +1,16 @@
+variable "aws_region" {
+  description = "The AWS region the infrastructure will live and logs data from"
+  type = string
+}
+
 variable "project_name" {
   description = "Prefix fo resource names"
   type = string
 }
 
-variable "alert_email" {
-  description = "Address that receives every alert (all alarms share one SNS topic)"
-  type = string
+variable "alert_emails" {
+  description = "Addresses that receives every alert (all alarms share one SNS topic)"
+  type = list(string)
 }
 
 variable "log_legacy_ec2_id" {
@@ -39,4 +44,36 @@ variable "rds_free_storage_threshold_gib" {
 
 variable "rds_max_connections" {
   type = number
+}
+
+variable "cwagent_namespace" {
+  description = "Cloudwatch namespace the agent publishes to"
+  type = string
+  default = "CWAgent"
+}
+
+# Must equal the mount path in the EC2 folder, or the alarm never finds data.
+variable "documents_volume_mount_path" {
+  description = "Where the documents disk is mounted"
+  type = string
+
+  validation {
+    condition = startswith(var.documents_volume_mount_path, "/")
+    error_message = "documents_volume_mount_path must be an absolute path"
+  }
+}
+
+variable "log_legacy_dlm_policy_id" {
+  description = "The ID of the Data Lifecycle Manager (DLM) that snapshots the documents volume"
+  type = string
+}
+
+variable "poller_log_retension_days" {
+  description = "How long the poller logs are kept in Cloudwatch Logs"
+  type = number
+
+  validation {   # Why: Retension values other than those in the list will fail at apply
+    condition = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.poller_log_retension_days)
+    error_message = "Cloudwatch Logs only accepts specific retension values, pick from them to use"
+  }
 }

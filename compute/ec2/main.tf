@@ -8,30 +8,24 @@ resource "aws_security_group" "log_legacy_ec2_sg" {
   }
 }
 
-resource "aws_iam_role" "log_legacy_ec2_session_manager_role" {
+resource "aws_iam_role" "log_legacy_ec2_role" {
   name = "${var.project_name}-ec2-session-manager-role"
-
-  # Trust policy: lets EC2 service assume this role
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = "sts:AssumeRole"
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      }
-    }]
-  })
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role
 }
 
 resource "aws_iam_role_policy_attachment" "log_legacy_ec2_session_manager_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  role       = aws_iam_role.log_legacy_ec2_session_manager_role.name
+  role       = aws_iam_role.log_legacy_ec2_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "log_legacy_ec2_cwagent_policy" {
+  role = aws_iam_role.log_legacy_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 resource "aws_iam_instance_profile" "log_legacy_ec2_instance_profile" {
   name = "${var.project_name}-ec2-instance-profile"
-  role = aws_iam_role.log_legacy_ec2_session_manager_role.name
+  role = aws_iam_role.log_legacy_ec2_role.name
 }
 
 resource "aws_instance" "log_legacy_ec2" {
@@ -76,6 +70,7 @@ resource "aws_ebs_volume" "documents_volume" {
 
   tags = {
     Name = "${var.project_name}-documents-volume"
+    SnapshotPolicy = "documents-daily"
   }
 }
 
@@ -83,6 +78,41 @@ resource "aws_volume_attachment" "documents_volume_attachment" {
   device_name = var.documents_volume_device_name
   volume_id   = aws_ebs_volume.documents_volume.id
   instance_id = aws_instance.log_legacy_ec2.id
+}
+
+resource "aws_iam_role" "log_legacy_dlm_role" {
+  name = "${var.project_name}-docs-volume-dlm-role"
+  assume_role_policy = data.aws_iam_policy_document.dlm_assume.json
+}
+
+resource "aws_iam_role_policy" "log_legacy_dlm_role_policy" {
+  name = "${var.project_name}-dlm-role-permissions"
+  role = aws_iam_role.log_legacy_dlm_role.id
+  policy = data.aws_iam_policy_document.dlm_role_permissions.json
+}
+
+resource "aws_dlm_lifecycle_policy" "log_legacy_documents_volume_snapshots" {
+  description = "Daily snapshots of the documents volume"
+  execution_role_arn = aws_iam_role.log_legacy_dlm_role.arn
+  state = "ENABLED"
+
+  policy_details {
+    resource_types = ["VOLUME"]
+    target_tags = {SnapshotPolicy = "documents-daily"}
+
+    schedule {
+      name = "daily-documents-volume-snapshot"
+      create_rule {
+        interval = 24
+        interval_unit = "HOURS"
+        times = ["03:00"]  # UTC
+      }
+      retain_rule {
+        count = var.documents_volume_snapshot_retain_counts
+      }
+      copy_tags = true
+    }
+  }
 }
 
 
