@@ -269,65 +269,49 @@ resource "aws_cloudwatch_metric_alarm" "log_legacy_documents_snapshot_missing" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
-resource "aws_cloudwatch_log_group" "log_legacy_poller_tracking" {
-  name = "/logistics/tracking-poller"
-  retention_in_days = var.poller_log_retension_days
+resource "aws_cloudwatch_log_group" "log_legacy_ssm_log_group" {
+  name = "/logistics-legacy/session-manager"
+  retention_in_days = var.session_manager_logs_retention_days
 }
 
-resource "aws_cloudwatch_dashboard" "log_legacy_tracking" {
-  dashboard_name = "${var.project_name}-tracking"
+resource "aws_cloudwatch_log_group" "log_legacy_app_log_group" {
+  name = "/logistics-legacy/app"
+  retention_in_days = var.app_logs_retention_days
+}
 
-  dashboard_body = jsondecode({
-    widgets = [
-      {
-        type = "metric", x = 0, y = 0, width = 12, height = 6
-        properties = {
-          title = "Poller heartbeat (successful cycles per 5 min)"
-          region = var.aws_region   # Region in which the data is written in
-          view = "timeSeries"
-          stat = "Sum"
-          period = 300
-          metrics = [[local.tracking_namespace, "Heartbeat"]]
-          yAxis = {left = { min = 0 }}
+resource "aws_cloudwatch_dashboard" "log_legacy_dashboard" {
+  dashboard_name = "${var.project_name}-cloudwatch-dashboard"
+
+  dashboard_body = jsonencode({
+    widgets = concat(
+      [
+        {
+          type = "alarm"
+          x = 0
+          y = 0
+          width = 24
+          height = 4
+          properties = {
+            title = "Legacy alarm status"
+            alarms = [for a in local.dashboard_alarms: a.arn]
+            sortBy = "stateUpdatedTimestamp"
+          }
         }
-      },
-      {
-        type = "metric", x = 12, y = 0, width = 12, height = 6
-        properties = {
-          title = "Failed cycles by reason"
-          region = var.aws_region
-          view = "timeSeries"
-          stacked = true  # Why: so that total height = total failures and colour = cause
-          stat = "Sum"
-          period = 300
-          metrics = [for r in local.poller_failure_reasons : [local.tracking_namespace, "FailedCycle", "Reason", r]]  # i.e Ns, MN, DM, DV
+      ],
+      [
+        for i, a in local.dashboard_alarms: {
+          type = "metric"
+          x = (i % 3) * 8
+          y = 4 + (i / 3) * 6
+          width = 8
+          height = 6
+          properties = {
+            title = a.title
+            region = var.aws_region
+            annotations = { alarms = [a.arn] }
+          }
         }
-      },
-      {
-        type = "metric", x = 12, y = 6, width = 12, height = 6
-        properties = {
-          title = "Records per cycle (backlog indicator)"
-          region = var.aws_region
-          view = "timeSeries"
-          stat = "Maximum"
-          period = 300
-          metrics = [[local.tracking_namespace, "RecordsPerCycle"]]
-          # Why a line at 50,000: a batch at the limit means the poller is still catching up
-          annotations = {horizontal = [{label = "feed limit", value = 50000}]}
-        }
-      },
-      {
-        type = "metric", x = 12, y = 6, width = 12, height = 6
-        properties = {
-          title = "Ingest lag (seconds)"
-          region = var.aws_region
-          view = "timeSeries"
-          stat = "Maximum"
-          period = 300
-          metric = [[local.tracking_namespace, "IngestLagSeconds"]]
-          annotations = {horizontal = [{label = "target", value = 300}]}
-        }
-      }
-    ]
+      ]
+    )
   })
 }

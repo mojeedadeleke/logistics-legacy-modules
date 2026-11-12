@@ -8,6 +8,22 @@ variable "vpc_id" {
   type        = string
 }
 
+# Why: So that a single variable can supply this db instance
+# and its log group name in the root module (to follow RDS log group naming convention)
+variable "db_identifier" {
+  type = string
+}
+
+variable "rds_logs_retention_days" {
+  description = "How long in days RDS postgres logs remain in its Cloudwatch Log group"
+  type = number
+
+  validation {   # Why: Retension values other than those in the list will fail at apply
+    condition = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.rds_postgres_logs_retention_days)
+    error_message = "Cloudwatch Logs only accepts specific retension values, pick from them to use"
+  }
+}
+
 variable "db_subnet_ids" {
   description = "List of db tier subnet IDs from network module, and the network output is an AZ-keyed map. Must span at least 2 AZs, even if multiAZ is disabled"
   type        = list(string)

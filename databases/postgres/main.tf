@@ -32,7 +32,7 @@ resource "aws_db_subnet_group" "log_legacy_db_subnet_group" {
 
 
 resource "aws_db_instance" "log_legacy_db_instance" {
-  identifier = "${var.project_name}-db-instance"
+  identifier = var.db_identifier
   # Why: same AZ as the EC2 instance (shared local.legacy_az in the root) to avoid cross-AZ transfer charges.
   availability_zone = var.db_availability_zone
   instance_class    = var.db_instance_class
@@ -72,8 +72,19 @@ resource "aws_db_instance" "log_legacy_db_instance" {
   # Note: Two destructions can cause snapshots names collision if the first is not deleted before second destruction.
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-db-final-snapshot"
 
+  enabled_cloudwatch_logs_exports = local.rds_log_exports
+  depends_on = [aws_cloudwatch_log_group.log_legacy_rds_log_groups] # So the log groups can before db instance is created, to avoid "ResourceAlreadyExistsException" error
+
 
   tags = {
     Name = "${var.project_name}-db-instance"
   }
+}
+
+# Why: So I can control rentention days
+resource "aws_cloudwatch_log_group" "log_legacy_rds_log_groups" {
+  for_each = toset(local.rds_log_exports)
+
+  name = "/aws/rds/instance/${var.db_identifier}/${each.key}"
+  retention_in_days = var.rds_logs_retention_days
 }
