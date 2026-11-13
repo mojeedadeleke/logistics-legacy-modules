@@ -86,5 +86,5 @@ resource "aws_cloudwatch_log_group" "log_legacy_rds_log_groups" {
   for_each = toset(local.rds_log_exports)
 
   name = "/aws/rds/instance/${var.db_identifier}/${each.key}"
-  retention_in_days = var.rds_logs_retention_days
+  retention_in_days = var.cw_log_groups_retention_days
 }

@@ -72,22 +72,12 @@ variable "log_legacy_dlm_policy_id" {
   type = string
 }
 
-variable "session_manager_logs_retention_days" {
-  description = "How long in days EC2 session manager logs remain in its Cloudwatch Log group"
+variable "cw_log_groups_retention_days" {
+  description = "How long in days logs remain in Cloudwatch Log groups"
   type = number
 
   validation {   # Why: Retension values other than those in the list will fail at apply
-    condition = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.session_manager_logs_retention_days)
-    error_message = "Cloudwatch Logs only accepts specific retension values, pick from them to use"
-  }
-}
-
-variable "app_logs_retention_days" {
-  description = "How long in days legacy app logs remain in its Cloudwatch Log group"
-  type = number
-
-  validation {   # Why: Retension values other than those in the list will fail at apply
-    condition = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.app_logs_retention_days)
+    condition = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.cw_log_groups_retention_days)
     error_message = "Cloudwatch Logs only accepts specific retension values, pick from them to use"
   }
 }

@@ -269,14 +269,36 @@ resource "aws_cloudwatch_metric_alarm" "log_legacy_documents_snapshot_missing" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
-resource "aws_cloudwatch_log_group" "log_legacy_ssm_log_group" {
+resource "aws_ssm_document" "log_legacy_session_manager_prefs" {
+  name = "SSM-SessionManagerRunShell"  # Account-wide default
+  document_type = "Session"
+  document_format = "JSON"
+
+  content = jsonencode({
+    schemaVersion = "1.0"
+    description = "Send Session Manager session logs to CloudWatch Logs"
+    sessionType = "Standard_Stream"
+    input = {
+      cloudWatchLogGroupName = aws_cloudwatch_log_group.log_legacy_ssm_log_group.name
+      cloudWatchEncryptionEnabled = false  # Why: "true" adds a key and cost for little benefit in this portfolio.
+      cloudWatchStreamingEnabled = true
+    }
+  })
+}
+
+resource "aws_cloudwatch_log_group" "log_legacy_ssm_log_group " {
   name = "/logistics-legacy/session-manager"
-  retention_in_days = var.session_manager_logs_retention_days
+  retention_in_days = var.cw_log_groups_retention_days
 }
 
 resource "aws_cloudwatch_log_group" "log_legacy_app_log_group" {
   name = "/logistics-legacy/app"
-  retention_in_days = var.app_logs_retention_days
+  retention_in_days = var.cw_log_groups_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "log_legacy_os_log_group" {
+  name = "/logistics-legacy/os"
+  retention_in_days = var.cw_log_groups_retention_days
 }
 
 resource "aws_cloudwatch_dashboard" "log_legacy_dashboard" {
